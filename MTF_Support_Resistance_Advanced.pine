@@ -1,0 +1,317 @@
+//@version=6
+indicator("MTF Support & Resistance - Advanced (Stable Lines)", overlay=true, max_lines_count=500, max_labels_count=200)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// الإعدادات
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+pivotLeft  = input.int(5, "شموع قبل المستوى", minval=1)
+pivotRight = input.int(5, "شموع تأكيد المستوى", minval=1)
+
+show1m  = input.bool(true, "إظهار 1 دقيقة")
+show5m  = input.bool(true, "إظهار 5 دقائق")
+show15m = input.bool(true, "إظهار 15 دقيقة")
+show30m = input.bool(true, "إظهار 30 دقيقة")
+show1h  = input.bool(true, "إظهار 1 ساعة")
+show4h  = input.bool(true, "إظهار 4 ساعات")
+showDay = input.bool(true, "إظهار اليومي")
+
+showLabels = input.bool(true, "إظهار أسماء الفريمات")
+showTable  = input.bool(true, "إظهار الجدول")
+showAlerts = input.bool(true, "تفعيل التنبيهات")
+
+// إعدادات التنبيهات
+alertDistance = input.float(0.5, "مسافة التنبيه (%)", minval=0.1, maxval=5)
+
+// إعدادات الخطوط
+lineWidth1m  = input.int(1, "سمك خط 1 دقيقة", minval=1, maxval=4)
+lineWidth5m  = input.int(1, "سمك خط 5 دقائق", minval=1, maxval=4)
+lineWidth15m = input.int(2, "سمك خط 15 دقيقة", minval=1, maxval=4)
+lineWidth30m = input.int(2, "سمك خط 30 دقيقة", minval=1, maxval=4)
+lineWidth1h  = input.int(2, "سمك خط 1 ساعة", minval=1, maxval=4)
+lineWidth4h  = input.int(3, "سمك خط 4 ساعات", minval=1, maxval=4)
+lineWidthD   = input.int(4, "سمك خط اليومي", minval=1, maxval=4)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// دوال الدعم والمقاومة
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_support() =>
+    float p = ta.pivotlow(low, pivotLeft, pivotRight)
+    ta.valuewhen(not na(p), p, 0)
+
+f_resistance() =>
+    float p = ta.pivothigh(high, pivotLeft, pivotRight)
+    ta.valuewhen(not na(p), p, 0)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// جلب المستويات من كل فريم
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+s1 = request.security(syminfo.tickerid, "1", f_support(), lookahead=barmerge.lookahead_off)
+r1 = request.security(syminfo.tickerid, "1", f_resistance(), lookahead=barmerge.lookahead_off)
+
+s5 = request.security(syminfo.tickerid, "5", f_support(), lookahead=barmerge.lookahead_off)
+r5 = request.security(syminfo.tickerid, "5", f_resistance(), lookahead=barmerge.lookahead_off)
+
+s15 = request.security(syminfo.tickerid, "15", f_support(), lookahead=barmerge.lookahead_off)
+r15 = request.security(syminfo.tickerid, "15", f_resistance(), lookahead=barmerge.lookahead_off)
+
+s30 = request.security(syminfo.tickerid, "30", f_support(), lookahead=barmerge.lookahead_off)
+r30 = request.security(syminfo.tickerid, "30", f_resistance(), lookahead=barmerge.lookahead_off)
+
+s1h = request.security(syminfo.tickerid, "60", f_support(), lookahead=barmerge.lookahead_off)
+r1h = request.security(syminfo.tickerid, "60", f_resistance(), lookahead=barmerge.lookahead_off)
+
+s4h = request.security(syminfo.tickerid, "240", f_support(), lookahead=barmerge.lookahead_off)
+r4h = request.security(syminfo.tickerid, "240", f_resistance(), lookahead=barmerge.lookahead_off)
+
+sd = request.security(syminfo.tickerid, "D", f_support(), lookahead=barmerge.lookahead_off)
+rd = request.security(syminfo.tickerid, "D", f_resistance(), lookahead=barmerge.lookahead_off)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// متغيرات الخطوط - ثابتة
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var line lS1 = na
+var line lR1 = na
+var line lS5 = na
+var line lR5 = na
+var line lS15 = na
+var line lR15 = na
+var line lS30 = na
+var line lR30 = na
+var line lS1h = na
+var line lR1h = na
+var line lS4h = na
+var line lR4h = na
+var line lSD = na
+var line lRD = na
+
+// متغيرات لتتبع آخر قيمة معروضة
+var float lastS1 = na
+var float lastR1 = na
+var float lastS5 = na
+var float lastR5 = na
+var float lastS15 = na
+var float lastR15 = na
+var float lastS30 = na
+var float lastR30 = na
+var float lastS1h = na
+var float lastR1h = na
+var float lastS4h = na
+var float lastR4h = na
+var float lastSD = na
+var float lastRD = na
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// دالة رسم/تحديث الخط الثابت
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_update_line(line& currentLine, float newValue, float& lastValue, color lineColor, int width) =>
+    if not na(newValue) and newValue != lastValue
+        if not na(currentLine)
+            line.delete(currentLine)
+        // رسم الخط من الماضي إلى المستقبل (ثابت على السعر)
+        currentLine := line.new(bar_index - 200, newValue, bar_index + 50, newValue, 
+                                extend=extend.both, color=lineColor, width=width, xloc=xloc.bar_index)
+        lastValue := newValue
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// متغيرات التنبيهات
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var bool alertS1 = false
+var bool alertR1 = false
+var bool alertS5 = false
+var bool alertR5 = false
+var bool alertS15 = false
+var bool alertR15 = false
+var bool alertS30 = false
+var bool alertR30 = false
+var bool alertS1h = false
+var bool alertR1h = false
+var bool alertS4h = false
+var bool alertR4h = false
+var bool alertSD = false
+var bool alertRD = false
+
+f_check_alert(float level, bool& alerted) =>
+    if showAlerts and not na(level)
+        tolerance = level * (alertDistance / 100)
+        if close >= level - tolerance and close <= level + tolerance and not alerted
+            alerted := true
+            true
+        else if close < level - tolerance or close > level + tolerance
+            alerted := false
+            false
+    false
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// رسم الخطوط وتحديثها
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if show1m
+    if f_check_alert(s1, alertS1)
+        alert("تنبيه: السعر قرب مستوى الدعم 1 دقيقة: " + str.tostring(s1, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(r1, alertR1)
+        alert("تنبيه: السعر قرب مستوى المقاومة 1 دقيقة: " + str.tostring(r1, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lS1, s1, lastS1, color.new(color.green, 20), lineWidth1m)
+    f_update_line(lR1, r1, lastR1, color.new(color.green, 20), lineWidth1m)
+
+if show5m
+    if f_check_alert(s5, alertS5)
+        alert("تنبيه: السعر قرب مستوى الدعم 5 دقائق: " + str.tostring(s5, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(r5, alertR5)
+        alert("تنبيه: السعر قرب مستوى المقاومة 5 دقائق: " + str.tostring(r5, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lS5, s5, lastS5, color.new(color.lime, 20), lineWidth5m)
+    f_update_line(lR5, r5, lastR5, color.new(color.lime, 20), lineWidth5m)
+
+if show15m
+    if f_check_alert(s15, alertS15)
+        alert("تنبيه: السعر قرب مستوى الدعم 15 دقيقة: " + str.tostring(s15, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(r15, alertR15)
+        alert("تنبيه: السعر قرب مستوى المقاومة 15 دقيقة: " + str.tostring(r15, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lS15, s15, lastS15, color.new(color.blue, 20), lineWidth15m)
+    f_update_line(lR15, r15, lastR15, color.new(color.blue, 20), lineWidth15m)
+
+if show30m
+    if f_check_alert(s30, alertS30)
+        alert("تنبيه: السعر قرب مستوى الدعم 30 دقيقة: " + str.tostring(s30, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(r30, alertR30)
+        alert("تنبيه: السعر قرب مستوى المقاومة 30 دقيقة: " + str.tostring(r30, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lS30, s30, lastS30, color.new(color.orange, 20), lineWidth30m)
+    f_update_line(lR30, r30, lastR30, color.new(color.orange, 20), lineWidth30m)
+
+if show1h
+    if f_check_alert(s1h, alertS1h)
+        alert("تنبيه: السعر قرب مستوى الدعم 1 ساعة: " + str.tostring(s1h, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(r1h, alertR1h)
+        alert("تنبيه: السعر قرب مستوى المقاومة 1 ساعة: " + str.tostring(r1h, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lS1h, s1h, lastS1h, color.new(color.yellow, 20), lineWidth1h)
+    f_update_line(lR1h, r1h, lastR1h, color.new(color.yellow, 20), lineWidth1h)
+
+if show4h
+    if f_check_alert(s4h, alertS4h)
+        alert("تنبيه: السعر قرب مستوى الدعم 4 ساعات: " + str.tostring(s4h, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(r4h, alertR4h)
+        alert("تنبيه: السعر قرب مستوى المقاومة 4 ساعات: " + str.tostring(r4h, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lS4h, s4h, lastS4h, color.new(color.purple, 20), lineWidth4h)
+    f_update_line(lR4h, r4h, lastR4h, color.new(color.purple, 20), lineWidth4h)
+
+if showDay
+    if f_check_alert(sd, alertSD)
+        alert("تنبيه: السعر قرب مستوى الدعم اليومي: " + str.tostring(sd, format.mintick), alert.freq_once_per_bar)
+    if f_check_alert(rd, alertRD)
+        alert("تنبيه: السعر قرب مستوى المقاومة اليومية: " + str.tostring(rd, format.mintick), alert.freq_once_per_bar)
+    f_update_line(lSD, sd, lastSD, color.new(color.red, 20), lineWidthD)
+    f_update_line(lRD, rd, lastRD, color.new(color.red, 20), lineWidthD)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// متغيرات التسميات
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var label lbS1 = na
+var label lbR1 = na
+var label lbS5 = na
+var label lbR5 = na
+var label lbS15 = na
+var label lbR15 = na
+var label lbS30 = na
+var label lbR30 = na
+var label lbS1h = na
+var label lbR1h = na
+var label lbS4h = na
+var label lbR4h = na
+var label lbSD = na
+var label lbRD = na
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// دالة تحديث التسميات
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_update_label(label& lbl, float value, string text, color bgColor) =>
+    if not na(value)
+        if not na(lbl)
+            label.delete(lbl)
+        lbl := label.new(bar_index + 5, value, text + "\n" + str.tostring(value, format.mintick), 
+                        style=label.style_label_left, color=bgColor, textcolor=color.white, 
+                        xloc=xloc.bar_index)
+
+if showLabels
+    if show1m
+        f_update_label(lbS1, s1, "🔽 S1 ", color.new(color.green, 50))
+        f_update_label(lbR1, r1, "🔼 R1 ", color.new(color.green, 50))
+
+    if show5m
+        f_update_label(lbS5, s5, "🔽 S5 ", color.new(color.lime, 50))
+        f_update_label(lbR5, r5, "🔼 R5 ", color.new(color.lime, 50))
+
+    if show15m
+        f_update_label(lbS15, s15, "🔽 S15", color.new(color.blue, 50))
+        f_update_label(lbR15, r15, "🔼 R15", color.new(color.blue, 50))
+
+    if show30m
+        f_update_label(lbS30, s30, "🔽 S30", color.new(color.orange, 50))
+        f_update_label(lbR30, r30, "🔼 R30", color.new(color.orange, 50))
+
+    if show1h
+        f_update_label(lbS1h, s1h, "🔽 S1h", color.new(color.yellow, 50))
+        f_update_label(lbR1h, r1h, "🔼 R1h", color.new(color.yellow, 50))
+
+    if show4h
+        f_update_label(lbS4h, s4h, "🔽 S4h", color.new(color.purple, 50))
+        f_update_label(lbR4h, r4h, "🔼 R4h", color.new(color.purple, 50))
+
+    if showDay
+        f_update_label(lbSD, sd, "🔽 SDay", color.new(color.red, 50))
+        f_update_label(lbRD, rd, "🔼 RDay", color.new(color.red, 50))
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// الجدول - معلومات تفصيلية
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_value(float v) =>
+    na(v) ? "-" : str.tostring(v, format.mintick)
+
+f_distance(float level) =>
+    if na(level)
+        "-"
+    else
+        dist = math.abs(close - level)
+        pct = (dist / level) * 100
+        str.tostring(dist, format.mintick) + " (" + str.tostring(pct, "0.00") + "%)"
+
+var table tbl = table.new(position.top_right, 4, 8, bgcolor=color.new(color.black, 10), border_width=2, border_color=color.gray)
+
+if barstate.islast and showTable
+
+    table.cell(tbl, 0, 0, "الفريم", bgcolor=color.new(color.gray, 30), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 0, "الدعم", bgcolor=color.new(color.gray, 30), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 0, "المقاومة", bgcolor=color.new(color.gray, 30), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 0, "المسافة", bgcolor=color.new(color.gray, 30), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 1, "1 دقيقة", bgcolor=color.new(color.green, 80), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 1, f_value(s1), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 1, f_value(r1), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 1, f_distance(s1), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 2, "5 دقائق", bgcolor=color.new(color.lime, 80), text_color=color.black, text_size=size.small)
+    table.cell(tbl, 1, 2, f_value(s5), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 2, f_value(r5), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 2, f_distance(s5), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 3, "15 دقيقة", bgcolor=color.new(color.blue, 80), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 3, f_value(s15), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 3, f_value(r15), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 3, f_distance(s15), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 4, "30 دقيقة", bgcolor=color.new(color.orange, 80), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 4, f_value(s30), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 4, f_value(r30), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 4, f_distance(s30), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 5, "1 ساعة", bgcolor=color.new(color.yellow, 80), text_color=color.black, text_size=size.small)
+    table.cell(tbl, 1, 5, f_value(s1h), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 5, f_value(r1h), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 5, f_distance(s1h), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 6, "4 ساعات", bgcolor=color.new(color.purple, 80), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 6, f_value(s4h), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 6, f_value(r4h), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 6, f_distance(s4h), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+
+    table.cell(tbl, 0, 7, "يومي", bgcolor=color.new(color.red, 80), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 7, f_value(sd), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 7, f_value(rd), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 7, f_distance(sd), bgcolor=color.new(color.black, 50), text_color=color.white, text_size=size.small)
